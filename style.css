@@ -17,6 +17,12 @@
     font-family: "Poppins", sans-serif;
 }
 
+@media screen and (max-width: 767px){
+    .container{
+        flex-direction: column;
+    }
+}
+
 .flex{
     display: flex;
 }
@@ -43,12 +49,24 @@ a{
     color: var(--color-secondary);
 }
 
+@media screen and (min-width: 768px) {
+    .hide-desktop{
+        display: none;
+    }
+}
+
 
 .left-block{
     width: 33%;
     background-color: var(--color-secondary);
     padding: 4rem 0 4rem 3rem;
 
+}
+
+@media screen and (max-width: 767px){
+    .left-block{
+        width: 100%;
+    }
 }
 
 
@@ -86,6 +104,12 @@ a{
     border-right: 1px solid var(--color-secondary);
 }
 
+@media screen and (max-width: 767px){
+    .right-block{
+        width: 100%;
+    }
+}
+
 .double-border{
     border-bottom: 2px double var(--color-secondary);
 }
@@ -94,11 +118,23 @@ a{
     font-size: 60px;
 }
 
+@media screen and (max-width: 767px){
+    .personal .name{
+        font-size: 8vw;
+    }
+}
+
 .personal .job{
     font-family: var(--alt-font);
     font-size: 30px;
     letter-spacing: 2px;
     padding: 1rem 0;
+}
+
+@media screen and (max-width: 767px){
+    .personal .job{
+        font-size: 7vw;
+    }
 }
 
 .timeline{
@@ -165,6 +201,12 @@ a{
     grid-gap: 2rem;
 }
 
+@media screen and (max-width: 767px){
+    .projects .samples{
+        grid-template-columns: 1fr;
+    }
+}
+
 .projects .samples .item{
     background-color: var(--color-secondary);
     color: var(--color-primary);
@@ -174,6 +216,7 @@ a{
 
 .projects .samples .item img{
     width: 100%;
+    height: auto;
     border-radius: 10px;
     padding-bottom: 5px;
     border-bottom: 1px solid var(--color-primary);
