@@ -1,0 +1,193 @@
+:root{
+    --color-primary: #ffffff;
+    --color-secondary: #323B4C;
+    --alt-font:"Bebas Neue", sans-serif;
+}
+
+*,:before,:after{
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+.container{
+    width: 100%;
+    max-width: 1100px;
+    margin: 0 auto;
+    font-family: "Poppins", sans-serif;
+}
+
+.flex{
+    display: flex;
+}
+
+.t-color-left{
+    color: var(--color-primary);
+}
+
+a{
+    color: inherit;
+    text-decoration: none;
+}
+
+.bold{
+    font-weight: bold;
+}
+
+.light{
+    font-weight: 500;
+}
+
+
+.t-color-right{
+    color: var(--color-secondary);
+}
+
+
+.left-block{
+    width: 33%;
+    background-color: var(--color-secondary);
+    padding: 4rem 0 4rem 3rem;
+
+}
+
+
+.left-block .block:not(:last-of-type){
+    margin-bottom: 2rem;
+}
+
+.left-block .block.big h2{
+    border-bottom: 2px solid #ffffff;
+    margin-bottom: 2rem;
+}
+
+.left-block .block.big .skills{
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-row-gap: .8rem;
+}
+
+.left-block .block.big .education{
+    padding-right: 2rem;
+}
+
+.profile img{
+    height: 150px;
+    width: 150px;
+    object-fit: cover;
+    object-position: center top;
+    border-radius: 50%;
+}
+
+.right-block{
+    width: 67%;
+    padding: 3rem 2rem ;
+    color: var(--color-secondary);
+    border-right: 1px solid var(--color-secondary);
+}
+
+.double-border{
+    border-bottom: 2px double var(--color-secondary);
+}
+
+.personal .name{
+    font-size: 60px;
+}
+
+.personal .job{
+    font-family: var(--alt-font);
+    font-size: 30px;
+    letter-spacing: 2px;
+    padding: 1rem 0;
+}
+
+.timeline{
+    position: relative;
+    padding-left: 1.5rem;
+}
+
+.timeline:before{
+    content: '';
+    width: 2px;
+    height: 100%;
+    position: absolute;
+    left: 0;
+    top: 5px;
+    display: inline-block;
+    background-color: var(--color-secondary);
+}
+
+.timeline .item{
+    position: relative;
+}
+
+.timeline .item:not(:last-child){
+    margin-bottom: 2rem;
+}
+
+.timeline .item::before{
+    content: '';
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    position: absolute;
+    left: calc(-1.5rem - 4px);
+    top: 5px;
+    display: inline-block;
+    background-color: var(--color-secondary);
+}
+
+.timeline .item .year{
+    font-family: var(--alt-font);
+    font-size: 20px;
+}
+
+.timeline .item .company{
+    font-weight: bold;
+    letter-spacing: 1px;
+    margin-bottom: .5rem;
+}
+
+.timeline .item .job{
+    font-family: var(--alt-font);
+    font-size: 15px;
+    letter-spacing: 2px;
+    margin-bottom: 1rem;
+}
+
+.timeline .item ul{
+    padding-left: 1rem;
+}
+
+.projects .samples{
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    grid-gap: 2rem;
+}
+
+.projects .samples .item{
+    background-color: var(--color-secondary);
+    color: var(--color-primary);
+    border-radius: 10px;
+    box-shadow: rgba(0, 0, 0, 0.16) 0px 10px 36px 0px, rgba(0, 0, 0, 0.06) 0px 0px 0px 1px;
+}
+
+.projects .samples .item img{
+    width: 100%;
+    border-radius: 10px;
+    padding-bottom: 5px;
+    border-bottom: 1px solid var(--color-primary);
+}
+
+.projects .samples .item a{
+    font-size: 13px;
+    font-weight: 500;
+    text-transform: uppercase;
+    text-align: center;
+    display: block;
+}
+
+.projects .samples .item p{
+    font-size: 14px;
+    padding: 10px;
+}
