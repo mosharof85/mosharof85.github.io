@@ -1,0 +1,661 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced Land Data System - Online Client</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; color: #333; }
+        .form-row { margin-bottom: 10px; display: flex; gap: 10px; align-items: center; }
+        input { padding: 8px; font-size: 14px; }
+        button { padding: 8px 15px; font-size: 14px; cursor: pointer; border: none; }
+        .btn-add { background-color: #4CAF50; color: white; }
+        .btn-remove { background-color: #f44336; color: white; }
+        .btn-submit { background-color: #008CBA; color: white; margin-top: 15px; }
+        .btn-action { padding: 4px 10px; font-size: 12px; margin-right: 5px; color: white; }
+        .btn-edit { background-color: #ff9800; }
+        .btn-delete { background-color: #f44336; }
+
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; margin-bottom: 30px; }
+        th, td { border: 1px solid #ddd; padding: 10px; text-align: left; font-size: 14px; }
+        th { background-color: #f2f2f2; }
+        .total-row { font-weight: bold; background-color: #e9e9e9; }
+        .share-table th { background-color: #e1f5fe; }
+        .aziz-table th { background-color: #efebe9; }
+        .amena-table th { background-color: #e8f5e9; }
+        .shanoar-table th { background-color: #fce4ec; }
+        .breakdown-text { font-size: 12px; color: #666; font-style: italic; display: block; margin-top: 4px; line-height: 1.4; }
+
+        .info-panel { background-color: #f9f9f9; border-left: 5px solid #008CBA; padding: 12px 15px; margin-top: 5px; margin-bottom: 15px; font-size: 14px; line-height: 1.6; border-radius: 0 4px 4px 0; }
+        .amena-panel { border-left-color: #2e7d32; background-color: #f1f8e9; }
+        .shanoar-panel { border-left-color: #c2185b; background-color: #fce4ec; }
+        .info-panel strong { color: #111; }
+
+        .col-porimap { width: 15%; }
+        .col-montobbo { width: 35%; }
+        .col-khotiyan, .col-dag { width: 12%; }
+        .col-action { width: 14%; }
+
+        .modal { display: none; position: fixed; z-index: 1; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.4); }
+        .modal-content { background-color: #fefefe; margin: 15% auto; padding: 20px; border: 1px solid #888; width: 300px; display: flex; flex-direction: column; gap: 10px; box-shadow: 0px 4px 8px rgba(0,0,0,0.2); }
+        .modal-content h3 { margin-top: 0; }
+        .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 10px; }
+        .btn-close { background-color: #bbb; color: black; }
+        .btn-save { background-color: #4CAF50; color: white; }
+    </style>
+
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+</head>
+<body>
+
+<h2>정보 입력 폼 (তথ্য ইনপুট ফর্ম)</h2>
+<form id="repeaterForm">
+    <div id="repeaterContainer">
+        <div class="form-row">
+            <input type="text" placeholder="খতিয়ান নং" required>
+            <input type="text" placeholder="দাগ নং" required>
+            <input type="text" placeholder="পরিমাপ (ডেসিম্যাল)" required>
+            <input type="text" placeholder="মন্তব্য">
+            <button type="button" class="btn-remove" onclick="removeFormRow(this)">মুছুন</button>
+        </div>
+    </div>
+    <button type="button" class="btn-add" onclick="addFormRow()">আরও যোগ করুন</button>
+    <br>
+    <button type="submit" class="btn-submit">সেভ করুন</button>
+</form>
+
+<h2>সংরक्षित তথ্য (অনলাইন ক্লাউড ডাটাবেজ)</h2>
+<table id="resultTable">
+    <thead>
+    <tr>
+        <th class="col-khotiyan">খতিয়ান নং</th>
+        <th class="col-dag">দাগ নং</th>
+        <th class="col-porimap">পরিমাপ (ডেসিম্যাল)</th>
+        <th class="col-montobbo">মন্তব্য</th>
+        <th class="col-action">অ্যাকশন</th>
+    </tr>
+    </thead>
+    <tbody></tbody>
+    <tfoot></tfoot>
+</table>
+
+<h2>অংশীদারদের মধ্যে পরিমাপ বণ্টন (৪০ ভাগ ফর্মুলা)</h2>
+<table id="shareTable" class="share-table">
+    <thead>
+    <tr>
+        <th>উত্তরাধিকারী</th>
+        <th>নাম</th>
+        <th>মোট সম্পত্তির অংশ</th>
+        <th>৪০ ভাগের হিসেবে (কানি/গণ্ডা)</th>
+        <th>শতাংশ (%)</th>
+        <th>প্রাপ্ত পরিমাপ ও ব্রেকডাউন</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr>
+        <td>স্ত্রী</td>
+        <td>আমেনা খাতুন</td>
+        <td>১/৮</td>
+        <td>৫ ভাগ</td>
+        <td>১২.৫%</td>
+        <td><span id="share-stri" style="font-weight: bold;">০.০০ ডেসিম্যাল</span> <span class="breakdown-text">ব্রেকডাউন: মূল সম্পত্তি থেকে স্ত্রী হিসেবে প্রাপ্য।</span></td>
+    </tr>
+    <tr>
+        <td>১ম ছেলে</td>
+        <td>ছানোয়ার হোসেন</td>
+        <td>অবशिष्टের ২ ভাগ করে</td>
+        <td>১৪ ভাগ</td>
+        <td>৩৫%</td>
+        <td><span id="share-chele1" style="font-weight: bold;">০.০০ ডেসিম্যাল</span> <span class="breakdown-text">ব্রেকডাউন: মূল সম্পত্তি থেকে ১ম ছেলে হিসেবে প্রাপ্য।</span></td>
+    </tr>
+    <tr>
+        <td>২য় ছেলে</td>
+        <td>আব্দুল আজিজ</td>
+        <td>অবशिष्टের ২ ভাগ করে</td>
+        <td>১৪ ভাগ</td>
+        <td>৩৫%</td>
+        <td><span id="share-chele2" style="font-weight: bold;">০.০০ ডেসিম্যাল</span> <span class="breakdown-text">ব্রেকডাউন: মূল সম্পত্তি থেকে ২য় ছেলে হিসেবে প্রাপ্য।</span></td>
+    </tr>
+    <tr>
+        <td>১ মেয়ে</td>
+        <td>সুফিয়া খাতুন</td>
+        <td>অবशिष्टের ১ ভাগ</td>
+        <td>৭ ভাগ</td>
+        <td>১৭.৫%</td>
+        <td><span id="share-meye" style="font-weight: bold;">০.০০ ডেসিম্যাল</span> <span class="breakdown-text">ব্রেকডাউন: মূল সম্পত্তি থেকে কন্যা হিসেবে প্রাপ্য।</span></td>
+    </tr>
+    </tbody>
+</table>
+
+<h2>আব্দুল আজিজ এর প্রাপ্ত সম্পত্তির ফরায়েজ বণ্টন (৭২ ভাগ ফর্মুলা)</h2>
+<table id="azizShareTable" class="aziz-table">
+    <thead>
+    <tr>
+        <th>উত্তরাধিকারী ও সম্পর্ক</th>
+        <th>নাম</th>
+        <th>মোট সম্পত্তির অংশ</th>
+        <th>৭২ ভাগের হিসেব</th>
+        <th>শতাংশ (%)</th>
+        <th>প্রাপ্ত পরিমাপ ও ব্রেকডাউন</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr>
+        <td>মা</td>
+        <td>আমেনা খাতুন</td>
+        <td>১/৬</td>
+        <td>১২ ভাগ</td>
+        <td>১৬.৬৭%</td>
+        <td><span id="aziz-ma" style="font-weight: bold;">০.০০ ডেসিম্যাল</span> <span class="breakdown-text">ব্রেকডাউন: মৃত ছেলে আব্দুল আজিজের সম্পত্তি থেকে মা হিসেবে প্রাপ্য।</span></td>
+    </tr>
+    <tr>
+        <td>স্ত্রী</td>
+        <td>রহিমা khanm</td>
+        <td>১/৮</td>
+        <td>৯ ভাগ</td>
+        <td>১২.৫%</td>
+        <td><span id="aziz-stri" style="font-weight: bold;">০.০০ ডেসিম্যাল</span> <span class="breakdown-text">ব্রেকডাউন: স্বামী আব্দুল আজিজের সম্পত্তি থেকে স্ত্রী হিসেবে প্রাপ্য।</span></td>
+    </tr>
+    <tr>
+        <td>কন্যা ১</td>
+        <td>আলপনা ইয়াসমিন</td>
+        <td>২/৯</td>
+        <td>১৬ ভাগ</td>
+        <td>২২.২২%</td>
+        <td><span id="aziz-konna1" style="font-weight: bold;">০.০০ ডেসিম্যাল</span> <span class="breakdown-text">ব্রেকডাউন: পিতা আব্দুল আজিজের সম্পত্তি থেকে কন্যা হিসেবে প্রাপ্য।</span></td>
+    </tr>
+    <tr>
+        <td>কন্যা ২</td>
+        <td>লাভলী আক্তার</td>
+        <td>২/৯</td>
+        <td>১৬ ভাগ</td>
+        <td>২২.২২%</td>
+        <td><span id="aziz-konna2" style="font-weight: bold;">০.০০ ডেসিম্যাল</span> <span class="breakdown-text">ব্রেকডাউন: পিতা আব্দুল আজিজের সম্পত্তি থেকে কন্যা হিসেবে প্রাপ্য।</span></td>
+    </tr>
+    <tr>
+        <td>কন্যা ৩</td>
+        <td>লাকী আক্তার</td>
+        <td>২/৯</td>
+        <td>১৬ ভাগ</td>
+        <td>২২.২২%</td>
+        <td><span id="aziz-konna3" style="font-weight: bold;">০.০০ ডেসিম্যাল</span> <span class="breakdown-text">ব্রেকডাউন: পিতা আব্দুল আজিজের সম্পত্তি থেকে কন্যা হিসেবে প্রাপ্য।</span></td>
+    </tr>
+    <tr>
+        <td>১ ভাই</td>
+        <td>ছানোয়ার হোসেন</td>
+        <td>অবशिष्टের ২ ভাগ</td>
+        <td>২ ভাগ</td>
+        <td>২.৭৮%</td>
+        <td><span id="aziz-bhai" style="font-weight: bold;">০.০০ ডেসিম্যাল</span> <span class="breakdown-text">ব্রেকডাউন: মৃত ভাই আব্দুল আজিজের সম্পত্তি থেকে ভাই হিসেবে অবশিষ্ট অংশ।</span></td>
+    </tr>
+    <tr>
+        <td>১ বোন</td>
+        <td>সুফিয়া খাতুন</td>
+        <td>অবशिष्टের ১ ভাগ</td>
+        <td>১ ভাগ</td>
+        <td>১.智障%</td>
+        <td><span id="aziz-bon" style="font-weight: bold;">০.০০ ডেসিম্যাল</span> <span class="breakdown-text">ব্রেকডাউন: মৃত ভাই আব্দুল আজিজের সম্পত্তি থেকে বোন হিসেবে অবশিষ্ট অংশ।</span></td>
+    </tr>
+    </tbody>
+</table>
+
+<h2>আমেনার ঘর (১৫ ভাগ ফর্মুলা)</h2>
+<div id="amenaSummaryPanel" class="info-panel amena-panel">
+    <strong>আমেনা খাতুন এর সর্বমোট সম্পত্তির পরিমাণ:</strong> <span id="amena-total-val" style="font-weight: bold; color: #2e7d32;">০.০০ ডেসিম্যাল</span><br>
+    <span id="amena-total-breakdown" style="font-size: 13px; color: #444;">উৎস হিসাব: মূল ঘরের স্ত্রী অংশ (০.০০ ডেসিম্যাল) + মৃত ছেলে আজিজের ঘরের মাতার অংশ (০.০০ ডেসিম্যাল)</span>
+</div>
+
+<table id="amenaShareTable" class="amena-table">
+    <thead>
+    <tr>
+        <th>উত্তরাধিকারী</th>
+        <th>পারিবাহিক সম্পর্ক</th>
+        <th>নাম</th>
+        <th>১৫ ভাগের হিসেবে অংশ</th>
+        <th>শতাংশ (%)</th>
+        <th>প্রাপ্ত পরিমাপ ও ব্রেকডাউন</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr>
+        <td>জীবিত ১ মেয়ে</td>
+        <td>দাদীর কন্যা</td>
+        <td>সুফিয়া খাতুন</td>
+        <td>৩ ভাগ</td>
+        <td>২০.০০%</td>
+        <td><span id="amena-meye" style="font-weight: bold;">০.০০ ডেসিম্যাল</span> <span id="amena-meye-breakdown" class="breakdown-text">০.০০ ডেসিম্যাল</span></td>
+    </tr>
+    <tr>
+        <td>১ম মৃত ছেলের ৩ মেয়ে (একত্রে)</td>
+        <td>১ম ঘরের নাতনি</td>
+        <td>আলপনা ইয়াসমিন</td>
+        <td>২ ভাগ</td>
+        <td>১৩.৩৩%</td>
+        <td><span id="amena-natni1" style="font-weight: bold;">০.০০ ডেসিম্যাল</span> <span id="amena-natni1-breakdown" class="breakdown-text">০.০০ ডেসিম্যাল</span></td>
+    </tr>
+    <tr>
+        <td>-</td>
+        <td>১ম ঘরের নাতনি</td>
+        <td>লাভলী আক্তার</td>
+        <td>২ ভাগ</td>
+        <td>১৩.৩৩%</td>
+        <td><span id="amena-natni2" style="font-weight: bold;">০.০০ ডেসিম্যাল</span> <span id="amena-natni2-breakdown" class="breakdown-text">০.০০ ডেসিম্যাল</span></td>
+    </tr>
+    <tr>
+        <td>-</td>
+        <td>১ম ঘরের নাতনি</td>
+        <td>লাকী আক্তার</td>
+        <td>২ ভাগ</td>
+        <td>১৩.৩৩%</td>
+        <td><span id="amena-natni3" style="font-weight: bold;">০.০০ ডেসিম্যাল</span> <span id="amena-natni3-breakdown" class="breakdown-text">০.০০ ডেসিম্যাল</span></td>
+    </tr>
+    <tr>
+        <td>২য় মৃত ছেলের ১ ছেলে ও ১ মেয়ে</td>
+        <td>২য় ঘরের নাতি</td>
+        <td>মোশারফ হোসেন</td>
+        <td>৪ ভাগ</td>
+        <td>২৬.67%</td>
+        <td><span id="amena-nati" style="font-weight: bold;">০.০০ ডেসিম্যাল</span> <span id="amena-nati-breakdown" class="breakdown-text">০.০০ ডেসিম্যাল</span></td>
+    </tr>
+    <tr>
+        <td>-</td>
+        <td>২য় ঘরের নাতনি</td>
+        <td>সালমা আক্তার</td>
+        <td>২ ভাগ</td>
+        <td>১৩.৩৩%</td>
+        <td><span id="amena-natni-salma" style="font-weight: bold;">০.০০ ডেসিম্যাল</span> <span id="amena-natni-salma-breakdown" class="breakdown-text">০.০০ ডেসিম্যাল</span></td>
+    </tr>
+    </tbody>
+</table>
+
+<h2>ছানোয়ার হোসেন এর সর্বমোট সম্পত্তির ফরায়েজ বণ্টন (২৪ ভাগ ফর্মুলা)</h2>
+<div id="shanoarSummaryPanel" class="info-panel shanoar-panel">
+    <strong>ছানোয়ার হোসেন এর সর্বমোট সম্পত্তির পরিমাণ:</strong> <span id="shanoar-total-val" style="font-weight: bold; color: #c2185b;">০.০০ ডেসিম্যাল</span><br>
+    <span id="shanoar-total-breakdown" style="font-size: 13px; color: #444;">উৎস হিসাব: মূল ঘরের ১ম ছেলে হিসেবে অংশ (০.০০ ডেসিম্যাল) + মৃত ভাই আজিজের ঘরের অবশিষ্ট ভাই অংশ (০.০০ ডেসিম্যাল)</span>
+</div>
+
+<table id="shanoarShareTable" class="shanoar-table">
+    <thead>
+    <tr>
+        <th>উত্তরাধিকারী</th>
+        <th>নাম</th>
+        <th>মোট সম্পত্তির অংশ</th>
+        <th>২৪ ভাগের হিসেবে অংশ</th>
+        <th>শতাংশ (%)</th>
+        <th>প্রাপ্ত পরিমাপ ও ব্রেকডাউন</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr>
+        <td>স্ত্রী</td>
+        <td>মনিজা বেগম</td>
+        <td>১/৮</td>
+        <td>৩ ভাগ</td>
+        <td>১২.৫%</td>
+        <td><span id="shanoar-stri" style="font-weight: bold;">০.০০ ডেসিম্যাল</span> <span id="shanoar-stri-breakdown" class="breakdown-text">০.০০ ডেসিম্যাল</span></td>
+    </tr>
+    <tr>
+        <td>১ ছেলে</td>
+        <td>মোশারফ হোসেন</td>
+        <td>অবशिष्टের ২ ভাগ</td>
+        <td>১৪ ভাগ</td>
+        <td>৫৮.৩৩%</td>
+        <td><span id="shanoar-chele" style="font-weight: bold; color: #155724;">০.০০ ডেসিম্যাল</span> <span id="shanoar-chele-breakdown" class="breakdown-text">০.০০ ডেসিম্যাল</span></td>
+    </tr>
+    <tr>
+        <td>১ মেয়ে</td>
+        <td>সালমা আক্তার</td>
+        <td>অবशिष्टের ১ ভাগ</td>
+        <td>৭ ভাগ</td>
+        <td>২৯.১৭%</td>
+        <td><span id="shanoar-meye" style="font-weight: bold; color: #155724;">০.০০ ডেসিম্যাল</span> <span id="shanoar-meye-breakdown" class="breakdown-text">০.০০ ডেসিম্যাল</span></td>
+    </tr>
+    </tbody>
+</table>
+
+<h2>ব্যক্তিভিত্তিক সর্বমোট সম্পত্তির হিসাব ও ব্রেকডাউন (Grand Total Summary)</h2>
+<table id="grandTotalTable">
+    <thead>
+    <tr style="background-color: #37474f; color: white;">
+        <th>নাম</th>
+        <th>সম্পর্ক ও উৎস</th>
+        <th>সর্বমোট প্রাপ্ত পরিমাপ</th>
+        <th>বিস্তারিত ব্রেকডাউন হিসাব</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr>
+        <td><b>সুফিয়া খাতুন</b></td>
+        <td>কন্যা / বোন</td>
+        <td><span id="grand-sufia" style="font-weight: bold; color: #007bc2;">০.০০ ডেসিম্যাল</span></td>
+        <td><span id="grand-sufia-breakdown" class="breakdown-text">০.০০ ডেসিম্যাল</span></td>
+    </tr>
+    <tr>
+        <td><b>রহিমা khanm</b></td>
+        <td>আজিজের স্ত্রী</td>
+        <td><span id="grand-rahima" style="font-weight: bold; color: #007bc2;">০.০০ ডেসিম্যাল</span></td>
+        <td><span id="grand-rahima-breakdown" class="breakdown-text">০.০০ ডেসিম্যাল</span></td>
+    </tr>
+    <tr>
+        <td><b>আলপনা ইয়াসমিন</b></td>
+        <td>কন্যা / নাতনি</td>
+        <td><span id="grand-alpona" style="font-weight: bold; color: #007bc2;">০.০০ ডেসিম্যাল</span></td>
+        <td><span id="grand-alpona-breakdown" class="breakdown-text">০.০০ ডেসিম্যাল</span></td>
+    </tr>
+    <tr>
+        <td><b>লাভলী আক্তার</b></td>
+        <td>কন্যা / নাতনি</td>
+        <td><span id="grand-lovely" style="font-weight: bold; color: #007bc2;">০.০০ ডেসিম্যাল</span></td>
+        <td><span id="grand-lovely-breakdown" class="breakdown-text">০.০০ ডেসিম্যাল</span></td>
+    </tr>
+    <tr>
+        <td><b>লাকী আক্তার</b></td>
+        <td>কন্যা / নাতনি</td>
+        <td><span id="grand-laki" style="font-weight: bold; color: #007bc2;">০.০০ ডেসিম্যাল</span></td>
+        <td><span id="grand-laki-breakdown" class="breakdown-text">০.০০ ডেসিম্যাল</span></td>
+    </tr>
+    <tr>
+        <td><b>মনিজা বেগম</b></td>
+        <td>ছানোয়ারের স্ত্রী</td>
+        <td><span id="grand-moniza" style="font-weight: bold; color: #007bc2;">০.০০ ডেসিম্যাল</span></td>
+        <td><span id="grand-moniza-breakdown" class="breakdown-text">০.০০ ডেসিম্যাল</span></td>
+    </tr>
+    <tr>
+        <td><b>মোশারফ হোসেন</b></td>
+        <td>নাতি / ছানোয়ারের ছেলে</td>
+        <td><span id="grand-mosharof" style="font-weight: bold; color: #155724;">০.০০ ডেসিম্যাল</span></td>
+        <td><span id="grand-mosharof-breakdown" class="breakdown-text">০.০০ ডেসিম্যাল</span></td>
+    </tr>
+    <tr>
+        <td><b>সালমা আক্তার</b></td>
+        <td>নাতনি / ছানোয়ারের মেয়ে</td>
+        <td><span id="grand-salma" style="font-weight: bold; color: #155724;">০.০০ ডেসিম্যাল</span></td>
+        <td><span id="grand-salma-breakdown" class="breakdown-text">০.০০ ডেসিম্যাল</span></td>
+    </tr>
+    </tbody>
+</table>
+
+<div id="editModal" class="modal">
+    <div class="modal-content">
+        <h3>정보 수정 (정보 সংশোধন করুন)</h3>
+        <input type="hidden" id="editId">
+        <label>খতিয়ান নং:</label><input type="text" id="editKhotiyan" required>
+        <label>দাগ নং:</label><input type="text" id="editDag" required>
+        <label>পরিমাপ (ডেসিম্যাল):</label><input type="text" id="editPorimap" required>
+        <label>মন্তব্য:</label><input type="text" id="editMontobbo">
+        <div class="modal-actions">
+            <button class="btn-close" onclick="closeModal()">বাতিল</button>
+            <button class="btn-save" onclick="saveEditedData()">হালনাগাদ</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Firebase Configuration
+    const firebaseConfig = {
+        databaseURL: "https://land-data-system-default-rtdb.firebaseio.com/"
+    };
+
+    // Initialize Firebase
+    firebase.initializeApp(firebaseConfig);
+    const database = firebase.database();
+
+    document.addEventListener('DOMContentLoaded', listenToOnlineData);
+
+    function convertToBanglaNumber(inputString) {
+        if (inputString === undefined || inputString === null) return '';
+        const englishNumbers = {'0': '০', '1': '১', '2': '২', '3': '৩', '4': '৪', '5': '৫', '6': '৬', '7': '৭', '8': '৮', '9': '৯', '.': '.'};
+        return inputString.toString().replace(/[0-9.]/g, function(w) { return englishNumbers[w] || w; });
+    }
+
+    function convertToEnglishNumber(inputString) {
+        if (!inputString) return 0;
+        const banglaNumbers = {'০': '0', '১': '1', '২': '2', '৩': '3', '৪': '4', '৫': '5', '৬': '6', '৭': '7', '৮': '8', '৯': '9'};
+        let engStr = inputString.toString().replace(/[০-৯]/g, function(w) { return banglaNumbers[w]; });
+        let num = parseFloat(engStr);
+        return isNaN(num) ? 0 : num;
+    }
+
+    function addFormRow() {
+        const container = document.getElementById('repeaterContainer');
+        const newRow = document.createElement('div');
+        newRow.className = 'form-row';
+        newRow.innerHTML = `
+                <input type="text" placeholder="খতিয়ান নং" required>
+                <input type="text" placeholder="দাগ নং" required>
+                <input type="text" placeholder="পরিমাপ (ডেসিম্যাল)" required>
+                <input type="text" placeholder="মন্তব্য">
+                <button type="button" class="btn-remove" onclick="removeFormRow(this)">মুছুন</button>
+            `;
+        container.appendChild(newRow);
+    }
+
+    function removeFormRow(button) {
+        const rows = document.querySelectorAll('.form-row');
+        if (rows.length > 1) button.parentElement.remove();
+        else alert("কমপক্ষে একটি সারি থাকতে হবে!");
+    }
+
+    // ONLINE SAVE OPERATION
+    document.getElementById('repeaterForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        const rows = document.querySelectorAll('.form-row');
+
+        rows.forEach(row => {
+            const inputs = row.querySelectorAll('input');
+            const newLandRef = database.ref('landData').push();
+            newLandRef.set({
+                khotiyan: convertToBanglaNumber(inputs[0].value),
+                dag: convertToBanglaNumber(inputs[1].value),
+                porimap: convertToBanglaNumber(inputs[2].value),
+                montobbo: convertToBanglaNumber(inputs[3].value)
+            });
+        });
+
+        document.getElementById('repeaterContainer').innerHTML = `
+                <div class="form-row">
+                    <input type="text" placeholder="খতিয়ান নং" required>
+                    <input type="text" placeholder="দাগ নং" required>
+                    <input type="text" placeholder="পরিমাপ (ডেসিম্যাল)" required>
+                    <input type="text" placeholder="মন্তব্য">
+                    <button type="button" class="btn-remove" onclick="removeFormRow(this)">মুছুন</button>
+                </div>
+            `;
+        document.getElementById('repeaterForm').reset();
+    });
+
+    // ONLINE LIVE FETCH
+    function listenToOnlineData() {
+        database.ref('landData').on('value', (snapshot) => {
+            const data = snapshot.val();
+            const savedData = [];
+            if (data) {
+                Object.keys(data).forEach(key => {
+                    savedData.push({ id: key, ...data[key] });
+                });
+            }
+            renderTableData(savedData);
+        });
+    }
+
+    function renderTableData(savedData) {
+        const tableBody = document.querySelector('#resultTable tbody');
+        const tableFoot = document.querySelector('#resultTable tfoot');
+        tableBody.innerHTML = ''; tableFoot.innerHTML = '';
+
+        savedData.sort((a, b) => a.khotiyan.toString().localeCompare(b.khotiyan.toString(), 'bn'));
+        let totalPorimap = 0;
+
+        savedData.forEach((item) => {
+            totalPorimap += convertToEnglishNumber(item.porimap);
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                    <td>${item.khotiyan}</td><td>${item.dag}</td><td>${item.porimap} ডেসিম্যাল</td><td>${item.montobbo}</td>
+                    <td>
+                        <button class="btn-action btn-edit" onclick="openModal('${item.id}', '${item.khotiyan}', '${item.dag}', '${item.porimap}', '${item.montobbo}')">এডিট</button>
+                        <button class="btn-action btn-delete" onclick="deleteData('${item.id}')">মুছুন</button>
+                    </td>
+                `;
+            tableBody.appendChild(tr);
+        });
+
+        if (savedData.length > 0) {
+            const totalTr = document.createElement('tr');
+            totalTr.className = 'total-row';
+            totalTr.innerHTML = `<td colspan="2" style="text-align: right;">সর্বমোট পরিমাপ:</td><td colspan="3">${convertToBanglaNumber(totalPorimap.toFixed(4))} ডেসিম্যাল</td>`;
+            tableFoot.appendChild(totalTr);
+        }
+        updateShareTable(totalPorimap);
+    }
+
+    function updateShareTable(total) {
+        // Table 2 (40 Shares)
+        const amenaWifeShare = (total * 5) / 40;
+        const shanoarChele1Share = (total * 14) / 40;
+        const azizShare = (total * 14) / 40;
+        const meyeShare = (total * 7) / 40;
+
+        document.getElementById('share-stri').innerText = convertToBanglaNumber(amenaWifeShare.toFixed(4)) + " ডেসিম্যাল";
+        document.getElementById('share-chele1').innerText = convertToBanglaNumber(shanoarChele1Share.toFixed(4)) + " ডেসিম্যাল";
+        document.getElementById('share-chele2').innerText = convertToBanglaNumber(azizShare.toFixed(4)) + " ডেসিম্যাল";
+        document.getElementById('share-meye').innerText = convertToBanglaNumber(meyeShare.toFixed(4)) + " ডেসিম্যাল";
+
+        // Table 3 (72 Shares)
+        const maShare = (azizShare * 12) / 72;
+        const striAzizShare = (azizShare * 9) / 72;
+        const konna1Share = (azizShare * 16) / 72;
+        const konna2Share = (azizShare * 16) / 72;
+        const konna3Share = (azizShare * 16) / 72;
+        const shanoarBhaiShare = (azizShare * 2) / 72;
+        const bonShare = (azizShare * 1) / 72;
+
+        document.getElementById('aziz-ma').innerText = convertToBanglaNumber(maShare.toFixed(4)) + " ডেসিম্যাল";
+        document.getElementById('aziz-stri').innerText = convertToBanglaNumber(striAzizShare.toFixed(4)) + " ডেসিম্যাল";
+        document.getElementById('aziz-konna1').innerText = convertToBanglaNumber(konna1Share.toFixed(4)) + " ডেসিম্যাল";
+        document.getElementById('aziz-konna2').innerText = convertToBanglaNumber(konna2Share.toFixed(4)) + " ডেসিম্যাল";
+        document.getElementById('aziz-konna3').innerText = convertToBanglaNumber(konna3Share.toFixed(4)) + " ডেসিম্যাল";
+        document.getElementById('aziz-bhai').innerText = convertToBanglaNumber(shanoarBhaiShare.toFixed(4)) + " ডেসিম্যাল";
+        document.getElementById('aziz-bon').innerText = convertToBanglaNumber(bonShare.toFixed(4)) + " ডেসিম্যাল";
+
+        // Table 4: Amena Khatun (15 Shares)
+        const amenaTotalProperty = amenaWifeShare + maShare;
+        const amenaMeye = (amenaTotalProperty * 3) / 15;
+        const amenaNatni1 = (amenaTotalProperty * 2) / 15;
+        const amenaNatni2 = (amenaTotalProperty * 2) / 15;
+        const amenaNatni3 = (amenaTotalProperty * 2) / 15;
+        const amenaNati = (amenaTotalProperty * 4) / 15;
+        const amenaNatniSalma = (amenaTotalProperty * 2) / 15;
+
+        document.getElementById('amena-total-val').innerText = convertToBanglaNumber(amenaTotalProperty.toFixed(4)) + " ডেসিম্যাল";
+        document.getElementById('amena-total-breakdown').innerText = `উৎস হিসাব: মূল ঘরের স্ত্রী অংশ (${convertToBanglaNumber(amenaWifeShare.toFixed(4))} ডেসিম্যাল) + মৃত ছেলে আজিজের ঘরের মাতার অংশ (${convertToBanglaNumber(maShare.toFixed(4))} ডেসিম্যাল)`;
+
+        document.getElementById('amena-meye').innerText = convertToBanglaNumber(amenaMeye.toFixed(4)) + " ডেসিম্যাল";
+        document.getElementById('amena-meye-breakdown').innerText = `ব্রেকডাউন: আমেনা খাতুনের সর্বমোট সম্পত্তির (${convertToBanglaNumber(amenaTotalProperty.toFixed(4))} ডেসিম্যাল) এর ৩/১৫ অংশ।`;
+
+        const rawNatniText = `ব্রেকডাউন: আমেনা খাতুনের সর্বমোট সম্পত্তির ১৫ ভাগের ২ ভাগ।`;
+        document.getElementById('amena-natni1').innerText = convertToBanglaNumber(amenaNatni1.toFixed(4)) + " ডেসিম্যাল";
+        document.getElementById('amena-natni1-breakdown').innerText = rawNatniText;
+        document.getElementById('amena-natni2').innerText = convertToBanglaNumber(amenaNatni2.toFixed(4)) + " ডেসিম্যাল";
+        document.getElementById('amena-natni2-breakdown').innerText = rawNatniText;
+        document.getElementById('amena-natni3').innerText = convertToBanglaNumber(amenaNatni3.toFixed(4)) + " ডেসিম্যাল";
+        document.getElementById('amena-natni3-breakdown').innerText = rawNatniText;
+
+        document.getElementById('amena-nati').innerText = convertToBanglaNumber(amenaNati.toFixed(4)) + " ডেসিম্যাল";
+        document.getElementById('amena-nati-breakdown').innerText = `ব্রেকডাউন: আমেনা খাতুনের সর্বমোট সম্পত্তির ১৫ ভাগের ৪ ভাগ।`;
+
+        document.getElementById('amena-natni-salma').innerText = convertToBanglaNumber(amenaNatniSalma.toFixed(4)) + " ডেসিম্যাল";
+        document.getElementById('amena-natni-salma-breakdown').innerText = `ব্রেকডাউন: আমেনা খাতুনের সর্বমোট সম্পত্তির ১৫ ভাগের ২ ভাগ।`;
+
+        // Table 5: Shanoar Hossein (24 Shares)
+        const shanoarTotalProperty = shanoarChele1Share + shanoarBhaiShare;
+        const shanoarStri = (shanoarTotalProperty * 3) / 24;
+        const shanoarCheleFromFather = (shanoarTotalProperty * 14) / 24;
+        const shanoarMeyeFromFather = (shanoarTotalProperty * 7) / 24;
+
+        document.getElementById('shanoar-total-val').innerText = convertToBanglaNumber(shanoarTotalProperty.toFixed(4)) + " ডেসিম্যাল";
+        document.getElementById('shanoar-total-breakdown').innerText = `উৎস হিসাব: মূল ঘরের ১ম ছেলে অংশ (${convertToBanglaNumber(shanoarChele1Share.toFixed(4))} ডেসিম্যাল) + মৃত ভাই আজিজের ঘরের অবশিষ্ট ভাই অংশ (${convertToBanglaNumber(shanoarBhaiShare.toFixed(4))} ডেসিম্যাল)`;
+
+        document.getElementById('shanoar-stri').innerText = convertToBanglaNumber(shanoarStri.toFixed(4)) + " ডেসিম্যাল";
+        document.getElementById('shanoar-stri-breakdown').innerText = `ব্রেকডাউন: স্বামী ছানোয়ারের মোট সম্পত্তির (${convertToBanglaNumber(shanoarTotalProperty.toFixed(4))} ডেসিম্যাল) এর ৩/২৪ অংশ।`;
+
+        document.getElementById('shanoar-chele').innerText = convertToBanglaNumber(shanoarCheleFromFather.toFixed(4)) + " ডেসিম্যাল";
+        document.getElementById('shanoar-chele-breakdown').innerText = `ব্রেকডাউন: পিতা ছানোয়ারের মোট সম্পত্তির (${convertToBanglaNumber(shanoarTotalProperty.toFixed(4))} ডেসিম্যাল) এর ১৪/২৪ অংশ।`;
+
+        document.getElementById('shanoar-meye').innerText = convertToBanglaNumber(shanoarMeyeFromFather.toFixed(4)) + " ডেসিম্যাল";
+        document.getElementById('shanoar-meye-breakdown').innerText = `ব্রেকডাউন: পিতা ছানোয়ারের মোট সম্পত্তির (${convertToBanglaNumber(shanoarTotalProperty.toFixed(4))} ডেসিম্যাল) এর ৭/২৪ অংশ।`;
+
+        // ==================================================
+        // Grand Totals Summary (সর্বমোট ব্যক্তিভিত্তিক হিসাব টেবিল)
+        // ==================================================
+        const totalSufia = meyeShare + bonShare + amenaMeye;
+        document.getElementById('grand-sufia').innerText = convertToBanglaNumber(totalSufia.toFixed(4)) + " ডেসিম্যাল";
+        document.getElementById('grand-sufia-breakdown').innerText = `মূল সম্পত্তি (৭/৪০ অংশ): ${convertToBanglaNumber(meyeShare.toFixed(4))} ডেসিম্যাল + আজিজের ঘর (১/৭২ অংশ): ${convertToBanglaNumber(bonShare.toFixed(4))} ডেসিম্যাল + মা আমেনার ঘর (৩/১৫ অংশ): ${convertToBanglaNumber(amenaMeye.toFixed(4))} ডেসিম্যাল।`;
+
+        const totalRahima = striAzizShare;
+        document.getElementById('grand-rahima').innerText = convertToBanglaNumber(totalRahima.toFixed(4)) + " ডেসিম্যাল"; // স্পেলিং ফিক্সড: grand-rahima
+        document.getElementById('grand-rahima-breakdown').innerText = `মৃত স্বামী আব্দুল আজিজের সম্পত্তি থেকে (৯/৭২ অংশ) প্রাপ্য।`;
+
+        const totalAlpona = konna1Share + amenaNatni1;
+        document.getElementById('grand-alpona').innerText = convertToBanglaNumber(totalAlpona.toFixed(4)) + " ডেসিম্যাল";
+        document.getElementById('grand-alpona-breakdown').innerText = `পিতা আজিজের ঘর (১৬/৭২ অংশ): ${convertToBanglaNumber(konna1Share.toFixed(4))} ডেসিম্যাল + দাদী আমেনার ঘর (২/১৫ অংশ): ${convertToBanglaNumber(amenaNatni1.toFixed(4))} ডেসিম্যাল।`;
+
+        const totalLovely = konna2Share + amenaNatni2;
+        document.getElementById('grand-lovely').innerText = convertToBanglaNumber(totalLovely.toFixed(4)) + " ডেসিম্যাল";
+        document.getElementById('grand-lovely-breakdown').innerText = `পিতা আজিজের ঘর (১৬/৭২ অংশ): ${convertToBanglaNumber(konna2Share.toFixed(4))} ডেসিম্যাল + দাদী আমেনার ঘর (২/১৫ অংশ): ${convertToBanglaNumber(amenaNatni2.toFixed(4))} ডেসিম্যাল।`;
+
+        const totalLaki = konna3Share + amenaNatni3;
+        document.getElementById('grand-laki').innerText = convertToBanglaNumber(totalLaki.toFixed(4)) + " ডেসিম্যাল";
+        document.getElementById('grand-laki-breakdown').innerText = `পিতা আজিজের ঘর (১৬/৭২ অংশ): ${convertToBanglaNumber(konna3Share.toFixed(4))} ডেসিম্যাল + দাদী আমেনার ঘর (২/১৫ অংশ): ${convertToBanglaNumber(amenaNatni3.toFixed(4))} ডেসিম্যাল।`;
+
+        const totalMoniza = shanoarStri;
+        document.getElementById('grand-moniza').innerText = convertToBanglaNumber(totalMoniza.toFixed(4)) + " ডেসিম্যাল";
+        document.getElementById('grand-moniza-breakdown').innerText = `স্বামী ছানোয়ার হোসেনের সম্পত্তি থেকে (৩/২৪ অংশ) প্রাপ্য।`;
+
+        const totalMosharof = shanoarCheleFromFather + amenaNati;
+        document.getElementById('grand-mosharof').innerText = convertToBanglaNumber(totalMosharof.toFixed(4)) + " ডেসিম্যাল";
+        document.getElementById('grand-mosharof-breakdown').innerText = `পিতা ছানোয়ারের ঘর (১৪/২৪ অংশ): ${convertToBanglaNumber(shanoarCheleFromFather.toFixed(4))} ডেসিম্যাল + দাদী আমেনার ঘর (৪/১৫ অংশ): ${convertToBanglaNumber(amenaNati.toFixed(4))} ডেসিম্যাল।`;
+
+        const totalSalma = shanoarMeyeFromFather + amenaNatniSalma;
+        document.getElementById('grand-salma').innerText = convertToBanglaNumber(totalSalma.toFixed(4)) + " ডেসিম্যাল";
+        document.getElementById('grand-salma-breakdown').innerText = `পিতা ছানোয়ারের ঘর (৭/২৪ অংশ): ${convertToBanglaNumber(shanoarMeyeFromFather.toFixed(4))} ডেসিম্যাল + দাদী আমেনার ঘর (২/১৫ অংশ): ${convertToBanglaNumber(amenaNatniSalma.toFixed(4))} ডেসিম্যাল।`;
+    }
+
+    // ONLINE DELETE OPERATION
+    function deleteData(id) {
+        if (confirm("আপনি কি এই তথ্যটি ডাটাবেজ থেকে ডিলিট করতে চান?")) {
+            database.ref('landData/' + id).remove();
+        }
+    }
+
+    function openModal(id, khotiyan, dag, porimap, montobbo) {
+        document.getElementById('editId').value = id;
+        document.getElementById('editKhotiyan').value = khotiyan;
+        document.getElementById('editDag').value = dag;
+        document.getElementById('editPorimap').value = porimap;
+        document.getElementById('editMontobbo').value = montobbo;
+        document.getElementById('editModal').style.display = 'block';
+    }
+
+    function closeModal() { document.getElementById('editModal').style.display = 'none'; }
+
+    // ONLINE UPDATE OPERATION
+    function saveEditedData() {
+        const id = document.getElementById('editId').value;
+        const khotiyan = convertToBanglaNumber(document.getElementById('editKhotiyan').value);
+        const dag = convertToBanglaNumber(document.getElementById('editDag').value);
+        const porimap = convertToBanglaNumber(document.getElementById('editPorimap').value);
+        const montobbo = convertToBanglaNumber(document.getElementById('editMontobbo').value);
+
+        database.ref('landData/' + id).set({
+            khotiyan: khotiyan,
+            dag: dag,
+            porimap: porimap,
+            montobbo: montobbo
+        }, function(error) {
+            if(!error) closeModal();
+        });
+    }
+</script>
+</body>
+</html>
